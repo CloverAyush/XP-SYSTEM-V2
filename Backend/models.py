@@ -52,6 +52,8 @@ class QuestTemplate(Base):
     scheduled_days = Column(String, nullable=True)  # JSON string or comma-separated days
     is_active = Column(Boolean, default=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    target_deadline = Column(Date, nullable= True) 
+    
 
 class QuestInstance(Base):
     __tablename__ = "quest_instances"
@@ -60,6 +62,8 @@ class QuestInstance(Base):
     template_id = Column(Integer, ForeignKey("quest_templates.id"), index=True)
     user_id = Column(Integer, ForeignKey("users.id"), index=True)
     date = Column(Date, index=True)  # The date this quest instance is for
+    period_key = Column(String, nullable= True, index= True)
     state = Column(String)  # pending, completed, failed, skipped
     completed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    deadline_date = Column(Date, nullable= True)

@@ -4,8 +4,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from Backend.models import QuestTemplate, User, Task, XPlog, QuestInstance
 from Database.database import engine, Base, SessionLocal
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from typing import Optional
+import calendar
 
 # Create database tables on startup
 Base.metadata.create_all(bind=engine)
@@ -44,39 +45,45 @@ def apply_pending_penalty(user, db):
     current_day = last_checked + timedelta(days=1)
 
     while current_day < today:
-        day_start = datetime(current_day.year, current_day.month, current_day.day)
-        day_end = day_start + timedelta(days=1)
-
-        tasks = db.query(Task).filter(
-            Task.user_id == user.id,
-            Task.created_at >= day_start,
-            Task.created_at < day_end
+       
+        instances = db.query(QuestInstance).filter(
+            QuestInstance.user_id == user.id,
+            QuestInstance.deadline_date <= current_day,
+            QuestInstance.state == "ACTIVE"
         ).all()
 
-        if not tasks:
+        if not instances:
             current_day += timedelta(days=1)
             continue
 
-        all_completed = all(t.is_completed for t in tasks)
+        all_completed = all(instance.state == "COMPLETED" for instance in instances)
 
         if not all_completed:
             # Calculate penalty for incomplete tasks
+            user.streak = 0
             penalty = 0
-            for task in tasks:
-                if not task.is_completed:
-                    if task.difficulty == "easy":
-                        penalty += 50
-                    elif task.difficulty == "medium":
+            for instance in instances:
+
+                template = db.query(QuestTemplate).filter(QuestTemplate.id == instance.template_id).first()
+
+                if instance.state != "COMPLETED":
+                    if template.difficulty == "easy":
+                        penalty += 150
+                    elif template.difficulty == "medium":
                         penalty += 100
                     else:
-                        penalty += 150
+                        penalty += 50
+
+                    instance.state = "FAILED"
 
             # Apply fail streak multiplier
             penalty *= (user.fail_streak + 1)
 
             # Apply penalty to user XP
             user.xp -= penalty
+            user.level = calc_level(user.xp)
             user.fail_streak += 1
+           
 
             # Log the penalty (negative xp_change)
             log = XPlog(
@@ -229,6 +236,9 @@ def complete_quest(instance_id: int, db: Session = Depends(get_db)):
     
     if instance.state == "COMPLETED":
         return {"message": "Task already completed"}
+
+    if instance.state == "FAILED":
+        return {"message": "Task failed"}
     
     instance.state = "COMPLETED"
     instance.completed_at = datetime.utcnow()
@@ -254,12 +264,14 @@ def complete_quest(instance_id: int, db: Session = Depends(get_db)):
     previous_completed_date= user.last_completed_date
     today = datetime.utcnow().date()
     
-    instance_today = db.query(QuestInstance).filter(
-        QuestInstance.user_id == user.id,
-        QuestInstance.created_at >= datetime(today.year, today.month, today.day)
-        ).all()
+    daily_one_time = db.query(QuestInstance).join(
+        QuestTemplate,
+        QuestInstance.template_id == QuestTemplate.id
+        ).filter(QuestInstance.user_id== user.id,
+                 QuestInstance.date== today,
+                 QuestTemplate.quest_type.in_(["DAILY", "ONE_TIME","scheduled"])).all()
     
-    all_completed_today = all(instance.state == "COMPLETED" for instance in instance_today)
+    all_completed_today = all(instance.state == "COMPLETED" for instance in daily_one_time)
 
    
 
@@ -321,6 +333,7 @@ def create_template(user_id: int,
                     quest_type: str,
                     difficulty: str,
                     scheduled_days: Optional[str] = None,
+                    target_deadline: date = None,
                     db: Session = Depends(get_db)):
     
     today = datetime.utcnow().date()
@@ -340,6 +353,7 @@ def create_template(user_id: int,
             template_id= template.id,
             user_id= user_id,
             date= today,
+            deadline_date = template.target_deadline,
             state= "ACTIVE"
         )
 
@@ -375,22 +389,61 @@ def get_quests(user_id, db: Session = Depends(get_db)):
 
 def generate_today_instances(user_id, db):
     today = datetime.utcnow().date()
+    week_key= f"{today.year}-W{today.isocalendar().week}"
+    month_key= f"{today.year}-{today.month:02d}"
+    today_day= today.strftime("%a").lower()
+
+   
+        
 
     templates = db.query(QuestTemplate).filter(
         QuestTemplate.user_id== user_id,
         QuestTemplate.is_active== True
     ).all()
 
-    today_day= today.strftime("%a").lower()
+    
 
     for template in templates:
+
+        period_key = None
+        
+        
+
+        if template.quest_type =="DAILY":
+           period_key= str(today) 
+    
+        elif template.quest_type == "WEEKLY":
+           period_key= week_key
+    
+        elif template.quest_type == "MONTHLY":
+           period_key= month_key
+
+        elif template.quest_type == "scheduled":
+
+            if not template.scheduled_days:
+                print(f"error scheduled days required for scheduled type quests, missing from template:{template.id}")
+                continue
+            
+            
+            allowed_days= template.scheduled_days.lower().split(",")
+        
+
+            if today_day in allowed_days:
+               period_key= str(today)
+            if today_day not in allowed_days:
+                continue
+
+        if period_key is None:
+            print("no period key:", template.id, template.quest_type)
+            continue
+
         existing_instance = db.query(QuestInstance).filter(QuestInstance.template_id == template.id,
-                                                           QuestInstance.date == today).first()
+                                                           QuestInstance.period_key == period_key).first()
         if existing_instance:
             continue
 
        
-
+        
         if template.quest_type== "scheduled":
             
             template.scheduled_days = template.scheduled_days.lower()
@@ -403,22 +456,73 @@ def generate_today_instances(user_id, db):
                 template_id= template.id,
                 user_id = user_id,
                 date = today,
+                period_key= str(today),
+                deadline_date = today,
                 state = "ACTIVE",
             )
                 
             db.add(new_instance)
-            db.commit()
 
         if template.quest_type == "DAILY":
             new_instance = QuestInstance(
                 template_id= template.id,
                 user_id = user_id,
                 date = today,
+                period_key= str(today),
+                deadline_date = today,
                 state = "ACTIVE",
             )
 
             db.add(new_instance)
-            db.commit()
+
+
+        if template.quest_type == "WEEKLY":
+
+            week_end = today + timedelta(days=(6-today.weekday()))
+
+            existing_instance = db.query(QuestInstance).filter(QuestInstance.template_id == template.id,
+                                                           QuestInstance.period_key == week_key).first()
+
+
+            new_instance= QuestInstance(
+                template_id = template.id,
+                user_id = user_id,
+                date = today,
+                period_key= week_key,
+                deadline_date = week_end,
+                state = "ACTIVE"
+            )
+
+            db.add(new_instance)
+
+        if template.quest_type == "MONTHLY":
+
+            last_day = calendar.monthrange(
+                today.year,
+                today.month
+            )[1]
+
+            month_end = date(
+                today.year,
+                today.month,
+                last_day
+            )
+
+            existing_instance = db.query(QuestInstance).filter(QuestInstance.template_id == template.id,
+                                                           QuestInstance.period_key == month_key).first()
+
+
+            new_instance= QuestInstance(
+                template_id = template.id,
+                user_id = user_id,
+                date = today,
+                period_key= month_key,
+                deadline_date = month_end,
+                state = "ACTIVE"
+            )
+
+            db.add(new_instance)
+    db.commit()    
 
 
     

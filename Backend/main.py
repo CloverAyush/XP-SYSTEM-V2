@@ -35,7 +35,11 @@ def get_db():
 
 def apply_pending_penalty(user, db):
     """Apply penalties for incomplete tasks from previous days"""
+
+    print("FUNCTION CALLED")
     today = datetime.utcnow().date()
+
+    user.last_penalty_date= datetime(2026, 6, 15)
 
     if user.last_penalty_date:
         last_checked = user.last_penalty_date.date()
@@ -43,7 +47,9 @@ def apply_pending_penalty(user, db):
         last_checked = user.last_completed_date.date() if user.last_completed_date else today - timedelta(days=1)
     
     current_day = last_checked + timedelta(days=1)
-
+    
+    print(current_day)
+    
     while current_day < today:
        
         instances = db.query(QuestInstance).filter(
@@ -51,6 +57,23 @@ def apply_pending_penalty(user, db):
             QuestInstance.deadline_date <= current_day,
             QuestInstance.state == "ACTIVE"
         ).all()
+
+        all_instances = db.query(QuestInstance).all()
+        print("=====All instances======")
+        for i in all_instances:
+            print(
+                i.id,
+                i.user_id,
+                i.deadline_date,
+                i.state
+            )
+
+        print("CURRENT_DAY", current_day)
+        print("INSTANCES FOUND:", len(instances))
+
+        for instance in instances:
+            print(instance.id, instance.deadline_date, instance.state)
+
 
         if not instances:
             current_day += timedelta(days=1)
@@ -60,9 +83,12 @@ def apply_pending_penalty(user, db):
 
         if not all_completed:
             # Calculate penalty for incomplete tasks
+            print("PENALTY BRANCH ENTERED")
             user.streak = 0
             penalty = 0
             for instance in instances:
+
+                print("processing:",instance.id,instance.state)
 
                 template = db.query(QuestTemplate).filter(QuestTemplate.id == instance.template_id).first()
 
@@ -141,6 +167,9 @@ def create_task(title: str,
 
 def calc_level(xp: int):
     """Calculate level based on XP (simple formula)"""
+    if (xp<0):
+        return 0
+
     return int((xp/100)**0.5)
 
 @app.post("/tasks/{task_id}/complete")
@@ -342,7 +371,9 @@ def create_template(user_id: int,
                 user_id=user_id, 
                 difficulty=difficulty, 
                 scheduled_days= scheduled_days,
-                quest_type= quest_type
+                quest_type= quest_type,
+                target_deadline= target_deadline,
+                description= description
                 )
     db.add(template)
     db.commit()

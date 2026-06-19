@@ -3,7 +3,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
-from Backend.models import QuestTemplate, User, Task, XPlog, QuestInstance
+from Backend.models import QuestTemplate, User, XPlog, QuestInstance
 from Backend.auth import (
     LoginRequest,
     RegisterRequest,
@@ -78,11 +78,25 @@ def get_current_user(
 
 
 def require_same_user(user_id: int, current_user: User):
+    print("check", current_user.id == user_id)
+    print("current_user", type(current_user.id))
+    print("request_user", type(user_id))
     if current_user.id != user_id:
+        print("TOKEN USER:",current_user.id)
+        print("REQUEST_USER:",user_id)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not allowed to access this user's data",
         )
+
+
+def calc_level(xp: int):
+    """Calculate level based on XP (simple formula)"""
+    if (xp < 0):
+        return 0
+
+    return int((xp / 100) ** 0.5)
+
 
 def apply_pending_penalty(user, db):
     """Apply penalties for incomplete tasks from previous days"""
@@ -182,10 +196,13 @@ def apply_pending_penalty(user, db):
     db.commit()              
 
 
+#------------------------Root-----------------------------------
+
 @app.get("/")
 def read_root():
     return {"message": "Welcome to the XP System API!"}
 
+#------------------------Auth-----------------------------------
 
 @app.post("/auth/register")
 def register_user(payload: RegisterRequest, db: Session = Depends(get_db)):
@@ -257,123 +274,95 @@ def create_user(name: str, db: Session = Depends(get_db)):
     db.refresh(user)
     return user
 
-#-----------------------------Tasks-------------------------------------
-
-@app.post("/tasks")
-def create_task(title: str,
-                user_id: int,
-                difficulty: str,
-                is_recurring: bool = False,
-                current_user: User = Depends(get_current_user),
-                db: Session = Depends(get_db)
-                ):
-    """Create a new task"""
-    require_same_user(user_id, current_user)
-
-    task = Task(title=title,
-                user_id=user_id, 
-                difficulty=difficulty, 
-                is_recurring=is_recurring)
-    db.add(task)
-    db.commit()
-    db.refresh(task)
-    return task
-
-def calc_level(xp: int):
-    """Calculate level based on XP (simple formula)"""
-    if (xp<0):
-        return 0
-
-    return int((xp/100)**0.5)
-
-@app.post("/tasks/{task_id}/complete")
-def complete_task(
-    task_id: int,
+@app.get("/users/{user_id}")
+def get_user(
+    user_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Check completion of a task and award XP"""
-    task = db.query(Task).filter(Task.id == task_id).first()
+    #Get user info and apply any pending penalties before returning data
+    require_same_user(user_id, current_user)
 
-    if not task:
-        return {"error": "Task not found"}
+    user= db.query(User).filter(User.id == user_id).first()
 
-    require_same_user(task.user_id, current_user)
+    if not user:
+        return {"Error": "no user found"}
     
-    if task.is_completed:
-        return {"message": "Task already completed"}
-    
-    task.is_completed = True
-
-    user = db.query(User).filter(User.id == task.user_id).first()
-
     apply_pending_penalty(user, db)
 
-    if task.difficulty == "easy":
-        xp_gain = 50
-    elif task.difficulty == "medium":
-        xp_gain = 100
-    else:
-        xp_gain = 150
-
-    user.xp += xp_gain
-    user.level = calc_level(user.xp)
-
-    previous_completed_date= user.last_completed_date
-    today = datetime.utcnow().date()
-    
-    tasks_today = db.query(Task).filter(
-        Task.user_id == user.id,
-        Task.created_at >= datetime(today.year, today.month, today.day)
-        ).all()
-    
-    all_completed_today = all(task.is_completed for task in tasks_today)
-
-    if previous_completed_date is None:
-        if all_completed_today:
-         user.streak = 1
-    else:
-        last_date = previous_completed_date.date()
-
-        if last_date == today:
-          pass
-        elif last_date == today - timedelta(days=1):
-            if all_completed_today:
-                user.streak += 1
-            else:
-                pass
-        else:
-            user.streak = 1
-
-    if all_completed_today:
-       user.last_completed_date = datetime.utcnow()
-
-
-    db.commit()
-    db.refresh(user)
-
-    log = XPlog(
-        user_id=user.id,
-        xp_change=xp_gain,
-        level_change=user.level,
-        streak_change=user.streak,
-        reason=f"Completed quest '{task.title, task.difficulty}'"
-    )
-
-    db.add(log)
-    db.commit()
-    db.refresh(log)
-
-    return {
-        "message": "Task completed",
-        "xp_gained": xp_gain,
-        "total_xp": user.xp,
-        "level": user.level,
-        "user_id": user.id,
+    return{
+        "id": user.id,
         "username": user.username,
-        "last_completed_date": user.last_completed_date,
-        "streak": user.streak
+        "xp": user.xp,
+        "level": user.level,
+        "streak": user.streak,
+        "fail_streak": user.fail_streak
     }
+
+#--------------------Quest Templates-----------------------------
+
+@app.post("/quest-templates")
+def create_template(user_id: int,
+                    title: str,
+                    description: str,
+                    quest_type: str,
+                    difficulty: str,
+                    scheduled_days: Optional[str] = None,
+                    target_deadline: date = None,
+                    current_user: User = Depends(get_current_user),
+                    db: Session = Depends(get_db)):
+    require_same_user(user_id, current_user)
+    
+    today = datetime.utcnow().date()
+
+    template = QuestTemplate(title=title,
+                user_id=user_id, 
+                difficulty=difficulty, 
+                scheduled_days= scheduled_days,
+                quest_type= quest_type,
+                target_deadline= target_deadline,
+                description= description
+                )
+    db.add(template)
+    db.commit()
+    db.refresh(template)
+
+    if(quest_type== "ONE_TIME"):
+        instance= QuestInstance(
+            template_id= template.id,
+            user_id= user_id,
+            date= today,
+            deadline_date = template.target_deadline,
+            state= "ACTIVE"
+        )
+
+        db.add(instance)
+        db.commit()
+        db.refresh(instance)
+
+    return template
+
+#------------------------Quests----------------------------------
+
+@app.get("/quests")
+def get_quests(
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_same_user(user_id, current_user)
+
+    generate_today_instances(user_id, db)
+    
+    today = datetime.utcnow().date()
+
+    quests = db.query(QuestInstance).filter(
+        QuestInstance.user_id== user_id,
+        QuestInstance.date == today
+    ).all()
+
+    return quests
+
 
 @app.post("/quests/{instance_id}/complete")
 def complete_quest(
@@ -458,110 +447,6 @@ def complete_quest(
         "username": user.username,
         "last_completed_date": user.last_completed_date,
     }
-
-
-
-
-@app.get("/users/{user_id}")
-def get_user(
-    user_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    #Get user info and apply any pending penalties before returning data
-    require_same_user(user_id, current_user)
-
-    user= db.query(User).filter(User.id == user_id).first()
-
-    if not user:
-        return {"Error": "no user found"}
-    
-    apply_pending_penalty(user, db)
-
-    return{
-        "id": user.id,
-        "username": user.username,
-        "xp": user.xp,
-        "level": user.level,
-        "streak": user.streak,
-        "fail_streak": user.fail_streak
-    }
-
-@app.post("/quest-templates")
-def create_template(user_id: int,
-                    title: str,
-                    description: str,
-                    quest_type: str,
-                    difficulty: str,
-                    scheduled_days: Optional[str] = None,
-                    target_deadline: date = None,
-                    current_user: User = Depends(get_current_user),
-                    db: Session = Depends(get_db)):
-    require_same_user(user_id, current_user)
-    
-    today = datetime.utcnow().date()
-
-    template = QuestTemplate(title=title,
-                user_id=user_id, 
-                difficulty=difficulty, 
-                scheduled_days= scheduled_days,
-                quest_type= quest_type,
-                target_deadline= target_deadline,
-                description= description
-                )
-    db.add(template)
-    db.commit()
-    db.refresh(template)
-
-    if(quest_type== "ONE_TIME"):
-        instance= QuestInstance(
-            template_id= template.id,
-            user_id= user_id,
-            date= today,
-            deadline_date = template.target_deadline,
-            state= "ACTIVE"
-        )
-
-        db.add(instance)
-        db.commit()
-        db.refresh(instance)
-
-    return template
-
-
-
-@app.get("/tasks")
-def get_tasks(
-    user_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
- #Get all tasks for a user
-    require_same_user(user_id, current_user)
-
-    tasks = db.query(Task).filter(Task.user_id == user_id).all()
-
-    return tasks
-
-
-@app.get("/quests")
-def get_quests(
-    user_id,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    require_same_user(user_id, current_user)
-
-    generate_today_instances(user_id, db)
-    
-    today = datetime.utcnow().date()
-
-    quests = db.query(QuestInstance).filter(
-        QuestInstance.user_id== user_id,
-        QuestInstance.date == today
-    ).all()
-
-    return quests
 
 def generate_today_instances(user_id, db):
     today = datetime.utcnow().date()

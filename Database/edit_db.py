@@ -1,5 +1,5 @@
-from Database.database import SessionLocal, engine, Base
-from Backend.models import User, Task
+from Database.database import SessionLocal
+from Backend.models import User
 from datetime import datetime, timedelta
 
 db = SessionLocal()

@@ -1,6 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Date
 from Database.database import Base
-from sqlalchemy.orm import relationship
 from datetime import datetime
 
 class User(Base):
@@ -16,19 +15,6 @@ class User(Base):
     last_completed_date = Column(DateTime, nullable=True)
     fail_streak = Column(Integer, default=0)
     last_penalty_date = Column(DateTime, nullable=True)
-
-class Task(Base):
-    __tablename__ = "tasks"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    title = Column(String)
-    description = Column(String)
-    is_completed = Column(Boolean, default=False)
-    is_recurring = Column(Boolean, default=False)
-    difficulty = Column(String)
-    due_date = Column(DateTime, default=datetime.utcnow)
-    created_at = Column(DateTime, default=datetime.utcnow)
 
 class XPlog(Base):
     __tablename__= "Xp_logs"

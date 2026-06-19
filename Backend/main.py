@@ -1,14 +1,25 @@
 from fastapi import FastAPI
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 from Backend.models import QuestTemplate, User, Task, XPlog, QuestInstance
+from Backend.auth import (
+    LoginRequest,
+    RegisterRequest,
+    authenticate_user,
+    create_access_token,
+    decode_access_token,
+    ensure_auth_schema,
+    hash_password,
+)
 from Database.database import engine, Base, SessionLocal
 from datetime import datetime, timedelta, date
 from typing import Optional
 import calendar
 
 # Create database tables on startup
+ensure_auth_schema()
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
@@ -26,6 +37,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+bearer_scheme = HTTPBearer(auto_error=False)
+
 def get_db():
     db = SessionLocal()
     try:
@@ -33,13 +46,50 @@ def get_db():
     finally:
         db.close()
 
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    db: Session = Depends(get_db),
+):
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication credentials were not provided",
+        )
+
+    payload = decode_access_token(credentials.credentials)
+    user_id = payload.get("sub")
+
+    if user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token payload",
+        )
+
+    user = db.query(User).filter(User.id == int(user_id)).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+        )
+
+    return user
+
+
+def require_same_user(user_id: int, current_user: User):
+    if current_user.id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not allowed to access this user's data",
+        )
+
 def apply_pending_penalty(user, db):
     """Apply penalties for incomplete tasks from previous days"""
 
     print("FUNCTION CALLED")
     today = datetime.utcnow().date()
 
-    user.last_penalty_date= datetime(2026, 6, 15)
 
     if user.last_penalty_date:
         last_checked = user.last_penalty_date.date()
@@ -136,6 +186,67 @@ def apply_pending_penalty(user, db):
 def read_root():
     return {"message": "Welcome to the XP System API!"}
 
+
+@app.post("/auth/register")
+def register_user(payload: RegisterRequest, db: Session = Depends(get_db)):
+    existing_user = db.query(User).filter(User.username == payload.username).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Username already exists")
+
+    existing_email = db.query(User).filter(User.email == payload.email).first()
+    if existing_email:
+        raise HTTPException(status_code=400, detail="Email already exists")
+
+    user = User(
+        username=payload.username,
+        email=payload.email,
+        password_hash=hash_password(payload.password),
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    return {
+        "message": "Registration successful",
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+        },
+    }
+
+
+@app.post("/auth/login")
+def login_user(payload: LoginRequest, db: Session = Depends(get_db)):
+    user = authenticate_user(db, payload.identifier, payload.password)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    access_token = create_access_token({"sub": str(user.id)})
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+        },
+    }
+
+
+@app.get("/auth/me")
+def get_auth_user(current_user: User = Depends(get_current_user)):
+    return {
+        "id": current_user.id,
+        "username": current_user.username,
+        "email": current_user.email,
+        "xp": current_user.xp,
+        "level": current_user.level,
+        "streak": current_user.streak,
+        "fail_streak": current_user.fail_streak,
+    }
+
 #------------------------Users----------------------------------
 
 @app.post("/users")
@@ -153,9 +264,12 @@ def create_task(title: str,
                 user_id: int,
                 difficulty: str,
                 is_recurring: bool = False,
+                current_user: User = Depends(get_current_user),
                 db: Session = Depends(get_db)
                 ):
     """Create a new task"""
+    require_same_user(user_id, current_user)
+
     task = Task(title=title,
                 user_id=user_id, 
                 difficulty=difficulty, 
@@ -173,12 +287,18 @@ def calc_level(xp: int):
     return int((xp/100)**0.5)
 
 @app.post("/tasks/{task_id}/complete")
-def complete_task(task_id: int, db: Session = Depends(get_db)):
+def complete_task(
+    task_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """Check completion of a task and award XP"""
     task = db.query(Task).filter(Task.id == task_id).first()
 
     if not task:
         return {"error": "Task not found"}
+
+    require_same_user(task.user_id, current_user)
     
     if task.is_completed:
         return {"message": "Task already completed"}
@@ -237,7 +357,7 @@ def complete_task(task_id: int, db: Session = Depends(get_db)):
         xp_change=xp_gain,
         level_change=user.level,
         streak_change=user.streak,
-        reason=f"Completed task '{task.title, task.difficulty}'"
+        reason=f"Completed quest '{task.title, task.difficulty}'"
     )
 
     db.add(log)
@@ -256,12 +376,18 @@ def complete_task(task_id: int, db: Session = Depends(get_db)):
     }
 
 @app.post("/quests/{instance_id}/complete")
-def complete_quest(instance_id: int, db: Session = Depends(get_db)):
+def complete_quest(
+    instance_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """Check completion of a task and award XP"""
     instance = db.query(QuestInstance).filter(QuestInstance.id == instance_id).first()
 
     if not instance:
         return {"error": "Task not found"}
+
+    require_same_user(instance.user_id, current_user)
     
     if instance.state == "COMPLETED":
         return {"message": "Task already completed"}
@@ -337,8 +463,14 @@ def complete_quest(instance_id: int, db: Session = Depends(get_db)):
 
 
 @app.get("/users/{user_id}")
-def get_user(user_id: int, db: Session = Depends(get_db)):
+def get_user(
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     #Get user info and apply any pending penalties before returning data
+    require_same_user(user_id, current_user)
+
     user= db.query(User).filter(User.id == user_id).first()
 
     if not user:
@@ -363,7 +495,9 @@ def create_template(user_id: int,
                     difficulty: str,
                     scheduled_days: Optional[str] = None,
                     target_deadline: date = None,
+                    current_user: User = Depends(get_current_user),
                     db: Session = Depends(get_db)):
+    require_same_user(user_id, current_user)
     
     today = datetime.utcnow().date()
 
@@ -397,15 +531,26 @@ def create_template(user_id: int,
 
 
 @app.get("/tasks")
-def get_tasks(user_id: int, db: Session = Depends(get_db)):
+def get_tasks(
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
  #Get all tasks for a user
+    require_same_user(user_id, current_user)
+
     tasks = db.query(Task).filter(Task.user_id == user_id).all()
 
     return tasks
 
 
 @app.get("/quests")
-def get_quests(user_id, db: Session = Depends(get_db)):
+def get_quests(
+    user_id,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_same_user(user_id, current_user)
 
     generate_today_instances(user_id, db)
     

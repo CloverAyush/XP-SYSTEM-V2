@@ -98,6 +98,14 @@ def calc_level(xp: int):
     return int((xp / 100) ** 0.5)
 
 
+def get_xp_reward_for_difficulty(difficulty: str) -> int:
+    if difficulty == "easy":
+        return 50
+    if difficulty == "medium":
+        return 100
+    return 150
+
+
 def apply_pending_penalty(user, db):
     """Apply penalties for incomplete tasks from previous days"""
 
@@ -356,12 +364,33 @@ def get_quests(
     
     today = datetime.utcnow().date()
 
-    quests = db.query(QuestInstance).filter(
-        QuestInstance.user_id== user_id,
+    quest_rows = db.query(QuestInstance, QuestTemplate).join(
+        QuestTemplate,
+        QuestInstance.template_id == QuestTemplate.id
+    ).filter(
+        QuestInstance.user_id == user_id,
         QuestInstance.date == today
     ).all()
 
-    return quests
+    return [
+        {
+            "id": instance.id,
+            "template_id": instance.template_id,
+            "user_id": instance.user_id,
+            "date": instance.date,
+            "period_key": instance.period_key,
+            "state": instance.state,
+            "completed_at": instance.completed_at,
+            "created_at": instance.created_at,
+            "deadline_date": instance.deadline_date,
+            "title": template.title,
+            "description": template.description,
+            "quest_type": template.quest_type,
+            "difficulty": template.difficulty,
+            "xp_reward": get_xp_reward_for_difficulty(template.difficulty),
+        }
+        for instance, template in quest_rows
+    ]
 
 
 @app.post("/quests/{instance_id}/complete")
@@ -408,19 +437,33 @@ def complete_quest(
     previous_completed_date= user.last_completed_date
     today = datetime.utcnow().date()
     
-    daily_one_time = db.query(QuestInstance).join(
-        QuestTemplate,
-        QuestInstance.template_id == QuestTemplate.id
-        ).filter(QuestInstance.user_id== user.id,
-                 QuestInstance.date== today,
-                 QuestTemplate.quest_type.in_(["DAILY", "ONE_TIME","scheduled"])).all()
-    
-    all_completed_today = all(instance.state == "COMPLETED" for instance in daily_one_time)
+    quests_today = db.query(QuestInstance).filter(
+        QuestInstance.user_id == user.id,
+        QuestInstance.date == today
+    ).all()
 
-   
+    all_completed_today = all(
+        quest.state == "COMPLETED" for quest in quests_today
+    )
+    all_completed_before_deadline = all(
+        quest.completed_at is not None and (
+            quest.deadline_date is None or quest.completed_at.date() <= quest.deadline_date
+        )
+        for quest in quests_today
+    )
 
-    if all_completed_today:
-       user.last_completed_date = datetime.utcnow()
+    if all_completed_today and all_completed_before_deadline:
+        if previous_completed_date is None:
+            user.streak = 1
+        else:
+            last_date = previous_completed_date.date()
+
+            if last_date == today - timedelta(days=1):
+                user.streak += 1
+            elif last_date != today:
+                user.streak = 1
+
+        user.last_completed_date = datetime.utcnow()
 
 
     db.commit()

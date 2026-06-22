@@ -272,6 +272,29 @@ def get_auth_user(current_user: User = Depends(get_current_user)):
         "fail_streak": current_user.fail_streak,
     }
 
+
+@app.get("/xp-logs")
+def get_xp_logs(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    logs = db.query(XPlog).filter(
+        XPlog.user_id == current_user.id
+    ).order_by(XPlog.created_at.desc(), XPlog.id.desc()).all()
+
+    return [
+        {
+            "id": log.id,
+            "user_id": log.user_id,
+            "xp_change": log.xp_change,
+            "level_change": log.level_change,
+            "streak_change": log.streak_change,
+            "reason": log.reason,
+            "created_at": log.created_at,
+        }
+        for log in logs
+    ]
+
 #------------------------Users----------------------------------
 
 @app.post("/users")

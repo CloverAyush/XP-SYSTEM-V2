@@ -135,7 +135,47 @@ curl -X GET http://localhost:8000/auth/me \
 }
 ```
 
-## 5. Create Legacy User
+## 5. Get XP Logs
+
+- Module: `Backend.main`
+- URL: `GET /xp-logs`
+- Auth required: `Yes`
+- Request params: `None`
+- Request body schema: `None`
+
+### Example request
+
+```bash
+curl -X GET http://localhost:8000/xp-logs \
+  -H "Authorization: Bearer <access_token>"
+```
+
+### Example response
+
+```json
+[
+  {
+    "id": 12,
+    "user_id": 1,
+    "xp_change": 100,
+    "level_change": 1,
+    "streak_change": 1,
+    "reason": "Completed task '('Daily Pushups', 'medium')'",
+    "created_at": "2026-06-22T10:00:00.000000"
+  },
+  {
+    "id": 11,
+    "user_id": 1,
+    "xp_change": -50,
+    "level_change": 0,
+    "streak_change": 2,
+    "reason": "Penalty for incomplete tasks on 2026-06-21 (50 XP)",
+    "created_at": "2026-06-22T09:00:00.000000"
+  }
+]
+```
+
+## 6. Create Legacy User
 
 - Module: `Backend.main`
 - URL: `POST /users`
@@ -173,7 +213,7 @@ curl -X POST "http://localhost:8000/users?name=alice"
 }
 ```
 
-## 6. Get User Profile
+## 7. Get User Profile
 
 - Module: `Backend.main`
 - URL: `GET /users/{user_id}`
@@ -208,7 +248,7 @@ curl -X GET http://localhost:8000/users/1 \
 }
 ```
 
-## 7. Create Quest Template
+## 8. Create Quest Template
 
 - Module: `Backend.main`
 - URL: `POST /quest-templates`
@@ -253,7 +293,7 @@ curl -X POST "http://localhost:8000/quest-templates?user_id=1&title=Morning%20Ru
 }
 ```
 
-## 8. Get Today’s Quest Instances
+## 9. Get Today’s Quest Instances
 
 - Module: `Backend.main`
 - URL: `GET /quests`
@@ -293,7 +333,7 @@ curl -X GET "http://localhost:8000/quests?user_id=1" \
 ]
 ```
 
-## 9. Complete Quest Instance
+## 10. Complete Quest Instance
 
 - Module: `Backend.main`
 - URL: `POST /quests/{instance_id}/complete`

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ProtectedRoute } from "@/components/protected-route";
 import { useAuth } from "@/components/auth-provider";
@@ -275,14 +276,26 @@ export default function DashboardPage() {
 
               <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 sm:min-w-64">
                 <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
-                  Logout
+                  Actions
                 </p>
                 <p className="mt-2 text-sm text-slate-400">
                   JWT session is active and automatically attached to protected requests.
                 </p>
+                <Link
+                  href="/templates/new"
+                  className="mt-4 block w-full rounded-xl border border-slate-700 px-4 py-3 text-center text-sm font-semibold text-white hover:border-slate-500 hover:bg-slate-900"
+                >
+                  Create Quest Template
+                </Link>
+                <Link
+                  href="/xp-logs"
+                  className="mt-3 block w-full rounded-xl border border-slate-700 px-4 py-3 text-center text-sm font-semibold text-white hover:border-slate-500 hover:bg-slate-900"
+                >
+                  View XP Logs
+                </Link>
                 <button
                   onClick={logout}
-                  className="mt-4 w-full rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-slate-200"
+                  className="mt-3 w-full rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-slate-200"
                 >
                   Logout
                 </button>

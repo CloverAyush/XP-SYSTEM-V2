@@ -55,17 +55,52 @@ type CompletionResponse = {
 function StatCard({
   label,
   value,
+  hint,
   accent,
 }: {
   label: string;
   value: string | number;
+  hint: string;
   accent: string;
 }) {
   return (
-    <section className="rounded-3xl border border-slate-800 bg-slate-950 p-6 shadow-panel">
-      <p className="text-xs uppercase tracking-[0.2em] text-slate-400">{label}</p>
+    <section className="system-card p-5 sm:p-6">
+      <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">{label}</p>
       <p className={`mt-4 text-4xl font-semibold ${accent}`}>{value}</p>
+      <p className="mt-3 text-sm text-slate-400">{hint}</p>
     </section>
+  );
+}
+
+function ProgressBar({
+  current,
+  total,
+  level,
+}: {
+  current: number;
+  total: number;
+  level: number;
+}) {
+  const safeCurrent = Math.max(0, current);
+  const safeTotal = Math.max(1, total);
+  const percent = Math.min(100, Math.max(0, (safeCurrent / safeTotal) * 100));
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-[0.14em] text-slate-400">
+        <span>Level Progress</span>
+        <span>Level {level} to {level + 1}</span>
+      </div>
+      <div className="h-3 overflow-hidden rounded-full bg-slate-900">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-violet-500 via-fuchsia-400 to-cyan-300"
+          style={{ width: `${percent.toFixed(2)}%` }}
+        />
+      </div>
+      <p className="mt-3 text-sm text-slate-400">
+        {safeCurrent}/{safeTotal} XP toward the next level.
+      </p>
+    </div>
   );
 }
 
@@ -80,79 +115,74 @@ function QuestCard({
   isCompleting: boolean;
   onComplete: (questId: number) => void;
 }) {
+  const difficultyTone =
+    quest.difficulty === "hard"
+      ? "text-rose-300"
+      : quest.difficulty === "medium"
+        ? "text-amber-300"
+        : "text-emerald-300";
+
   return (
-    <article className="rounded-3xl border border-slate-800 bg-slate-950 p-5">
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div>
-          <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
-            Quest #{quest.id}
-          </p>
-          <h3 className="mt-2 text-lg font-semibold text-white">
-            {quest.title}
-          </h3>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-            {quest.description || "No description provided for this quest."}
+    <article className="system-card p-5 sm:p-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 text-center lg:text-left">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="system-badge">{quest.quest_type}</span>
+          </div>
+          <h3 className="mt-4 text-xl font-semibold text-white">{quest.title}</h3>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
+            {quest.description || "The system has not attached a quest description to this quest."}
           </p>
         </div>
 
-        <span
-          className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] ${
-            quest.state === "COMPLETED"
-              ? "bg-emerald-500/15 text-emerald-300"
-              : "bg-cyan-500/15 text-cyan-300"
-          }`}
-        >
-          {quest.state}
-        </span>
+        <div className="flex flex-col items-center gap-2 lg:items-end">
+          <span
+            className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${
+              quest.state === "COMPLETED"
+                ? "bg-emerald-500/15 text-emerald-300"
+                : "bg-cyan-400/15 text-cyan-300"
+            }`}
+          >
+            {quest.state === "COMPLETED" ? "Quest Cleared" : "Active Quest"}
+          </span>
+          <span className={`text-sm font-semibold uppercase tracking-[0.14em] ${difficultyTone}`}>
+            {quest.difficulty}
+          </span>
+        </div>
       </div>
 
-      <dl className="mt-5 grid gap-4 text-sm text-slate-300 sm:grid-cols-2 xl:grid-cols-4">
-        <div>
-          <dt className="text-xs uppercase tracking-[0.14em] text-slate-500">
-            Quest Type
-          </dt>
-          <dd className="mt-1">{quest.quest_type}</dd>
+      <dl className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-violet-900/30 bg-slate-950/70 px-4 py-4">
+          <dt className="text-[11px] uppercase tracking-[0.16em] text-slate-500">XP Reward</dt>
+          <dd className="mt-2 text-lg font-semibold text-violet-200">+{quest.xp_reward} XP</dd>
         </div>
-        <div>
-          <dt className="text-xs uppercase tracking-[0.14em] text-slate-500">
-            Difficulty
-          </dt>
-          <dd className="mt-1">{quest.difficulty}</dd>
+        <div className="rounded-2xl border border-violet-900/30 bg-slate-950/70 px-4 py-4">
+          <dt className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Deadline</dt>
+          <dd className="mt-2 text-sm font-medium text-slate-200">{quest.deadline_date ?? "No deadline"}</dd>
         </div>
-        <div>
-          <dt className="text-xs uppercase tracking-[0.14em] text-slate-500">
-            Deadline Date
-          </dt>
-          <dd className="mt-1">{quest.deadline_date ?? "N/A"}</dd>
+        <div className="rounded-2xl border border-violet-900/30 bg-slate-950/70 px-4 py-4">
+          <dt className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Scheduled Date</dt>
+          <dd className="mt-2 text-sm font-medium text-slate-200">{quest.date}</dd>
         </div>
-        <div>
-          <dt className="text-xs uppercase tracking-[0.14em] text-slate-500">
-            Completed At
-          </dt>
-          <dd className="mt-1">{quest.completed_at ?? "Not completed"}</dd>
-        </div>
-        <div>
-          <dt className="text-xs uppercase tracking-[0.14em] text-slate-500">
-            XP Reward
-          </dt>
-          <dd className="mt-1">{quest.xp_reward}</dd>
+        <div className="rounded-2xl border border-violet-900/30 bg-slate-950/70 px-4 py-4">
+          <dt className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Completion Record</dt>
+          <dd className="mt-2 text-sm font-medium text-slate-200">{quest.completed_at ?? "Pending"}</dd>
         </div>
       </dl>
 
-      <div className="mt-5 flex flex-wrap items-center gap-3 text-xs text-slate-500">
-        <span>Date: {quest.date}</span>
-        <span>State: {quest.state}</span>
-        <span>Period Key: {quest.period_key ?? "N/A"}</span>
-      </div>
-
       {canComplete ? (
-        <button
-          onClick={() => onComplete(quest.id)}
-          disabled={isCompleting}
-          className="mt-5 rounded-xl bg-cyan-400 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {isCompleting ? "Completing..." : "Complete Quest"}
-        </button>
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-center text-sm text-slate-400 sm:text-left">
+            The system is awaiting confirmation. Clear this quest to claim its XP reward.
+          </p>
+          <button
+            onClick={() => onComplete(quest.id)}
+            disabled={isCompleting}
+            className="system-button-primary w-full sm:w-auto"
+          >
+            {isCompleting ? "Confirming clear..." : "Mark as Completed"}
+          </button>
+        </div>
       ) : null}
     </article>
   );
@@ -172,6 +202,13 @@ export default function DashboardPage() {
 
   const activeQuests = quests.filter((quest) => quest.state === "ACTIVE");
   const completedQuests = quests.filter((quest) => quest.state === "COMPLETED");
+
+  const currentLevel = profile?.level ?? 0;
+  const currentXp = profile?.xp ?? 0;
+  const currentLevelFloor = currentLevel * currentLevel * 100;
+  const nextLevelCeiling = (currentLevel + 1) * (currentLevel + 1) * 100;
+  const xpIntoLevel = Math.max(0, currentXp - currentLevelFloor);
+  const xpRequiredForNextLevel = Math.max(1, nextLevelCeiling - currentLevelFloor);
 
   async function loadDashboardData(showRefreshing = false) {
     if (showRefreshing) {
@@ -197,7 +234,7 @@ export default function DashboardPage() {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError("Failed to load dashboard data");
+        setError("The system failed to sync your dashboard data.");
       }
     } finally {
       setLoading(false);
@@ -224,14 +261,14 @@ export default function DashboardPage() {
       );
 
       setSuccessMessage(
-        `${response.message}. Gained ${response.xp_gained} XP.`
+        `System message: Quest cleared. Gained ${response.xp_gained} XP and updated total to ${response.total_xp} XP.`
       );
       await loadDashboardData(true);
     } catch (err) {
       if (err instanceof ApiError) {
-        setActionError(err.message);
+        setActionError(`System warning: ${err.message}`);
       } else {
-        setActionError("Failed to complete quest");
+        setActionError("System warning: Quest completion could not be confirmed.");
       }
     } finally {
       setCompletingQuestId(null);
@@ -240,77 +277,75 @@ export default function DashboardPage() {
 
   return (
     <ProtectedRoute>
-      <main className="min-h-screen bg-slate-950 px-4 py-8 text-slate-100 sm:px-6">
-        <div className="mx-auto max-w-6xl space-y-6">
-          <section className="rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-panel sm:p-8">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm font-medium uppercase tracking-[0.22em] text-cyan-300">
-                    XP System
-                  </p>
-                  <h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">
-                    Quest Dashboard
-                  </h1>
-                </div>
+      <main className="min-h-screen px-4 py-6 text-slate-100 sm:px-6 sm:py-8">
+        <div className="system-shell">
+          <section className="system-panel overflow-hidden p-5 sm:p-8">
+            <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+              <div className="min-w-0 flex-1 text-center xl:text-left">
+                <p className="system-eyebrow">Solo Leveling System</p>
+                <h1 className="mt-3 system-title">Hunter Card</h1>
+                <p className="mt-3 max-w-2xl system-copy">
+                  {activeQuests.length > 0
+                    ? `System notice: ${activeQuests.length} active quest${activeQuests.length > 1 ? "s are" : " is"} available for immediate clearance.`
+                    : "System notice: No active quests detected. Create a new template to generate quests."}
+                </p>
 
-                <div className="grid gap-3 text-sm text-slate-300 sm:grid-cols-2">
-                  <div className="rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3">
-                    <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
-                      Username
-                    </p>
-                    <p className="mt-1 font-semibold text-white">
-                      {authUser?.username ?? "..."}
+                <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-2">
+                  <div className="system-card px-4 py-4 text-center sm:text-left">
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Hunter</p>
+                    <p className="mt-2 text-lg font-semibold text-white">
+                      {authUser?.username ?? "Synchronizing..."}
                     </p>
                   </div>
-                  <div className="rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3">
-                    <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
-                      User Info
-                    </p>
-                    <p className="mt-1 font-semibold text-white">
-                      {authUser?.email ?? "Authenticated user"}
+                  <div className="system-card px-4 py-4 text-center sm:text-left">
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">System State</p>
+                    <p className="mt-2 text-sm font-medium text-violet-200">
+                      {refreshing ? "Refreshing quest telemetry..." : "Quest board synchronized"}
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 sm:min-w-64">
-                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
-                  Actions
-                </p>
-                <p className="mt-2 text-sm text-slate-400">
-                  JWT session is active and automatically attached to protected requests.
-                </p>
-                <Link
-                  href="/templates/new"
-                  className="mt-4 block w-full rounded-xl border border-slate-700 px-4 py-3 text-center text-sm font-semibold text-white hover:border-slate-500 hover:bg-slate-900"
-                >
-                  Create Quest Template
-                </Link>
-                <Link
-                  href="/xp-logs"
-                  className="mt-3 block w-full rounded-xl border border-slate-700 px-4 py-3 text-center text-sm font-semibold text-white hover:border-slate-500 hover:bg-slate-900"
-                >
-                  View XP Logs
-                </Link>
-                <button
-                  onClick={logout}
-                  className="mt-3 w-full rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-slate-200"
-                >
-                  Logout
-                </button>
+              <div className="w-full max-w-sm shrink-0 space-y-3 self-center xl:self-start">
+                <div className="system-card p-4">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Control Panel</p>
+                  <div className="mt-4 grid gap-3">
+                    <Link href="/templates/new" className="system-button-secondary">
+                      Create Quest Template
+                    </Link>
+                    <Link href="/xp-logs" className="system-button-secondary">
+                      View XP Logs
+                    </Link>
+                    <button
+                      onClick={logout}
+                      className="inline-flex items-center justify-center self-start rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-200 hover:border-violet-500/60"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                </div>
+
+                <div className="system-card p-4">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">XP Channel</p>
+                  <div className="mt-4">
+                    <ProgressBar current={xpIntoLevel} total={xpRequiredForNextLevel} level={currentLevel} />
+                  </div>
+                </div>
               </div>
             </div>
           </section>
 
           {loading ? (
-            <section className="rounded-3xl border border-slate-800 bg-slate-900 p-8">
-              <p className="text-sm text-slate-400">Loading dashboard and quests...</p>
+            <section className="system-panel p-8">
+              <p className="system-eyebrow">System Sync</p>
+              <p className="mt-3 system-copy">
+                Calibrating hunter records, quest state, and progression telemetry...
+              </p>
             </section>
           ) : null}
 
           {error ? (
-            <section className="rounded-3xl border border-red-900 bg-red-950/50 p-6 text-sm text-red-300">
+            <section className="system-alert system-alert-error">
               {error}
             </section>
           ) : null}
@@ -318,50 +353,63 @@ export default function DashboardPage() {
           {!loading && !error && profile ? (
             <>
               <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <StatCard label="Level" value={profile.level} accent="text-cyan-300" />
-                <StatCard label="XP" value={profile.xp} accent="text-white" />
-                <StatCard label="Streak" value={profile.streak} accent="text-emerald-300" />
+                <StatCard
+                  label="Level"
+                  value={profile.level}
+                  hint="Current hunter rank."
+                  accent="text-violet-200"
+                />
+                <StatCard
+                  label="XP"
+                  value={profile.xp}
+                  hint="Accumulated system experience."
+                  accent="text-cyan-200"
+                />
+                <StatCard
+                  label="Streak"
+                  value={profile.streak}
+                  hint="Consecutive successful days."
+                  accent="text-emerald-200"
+                />
                 <StatCard
                   label="Fail Streak"
                   value={profile.fail_streak}
-                  accent="text-amber-300"
+                  hint="Penalty chain being tracked."
+                  accent="text-amber-200"
                 />
               </section>
 
-              <section className="rounded-3xl border border-slate-800 bg-slate-900 p-6 sm:p-8">
-                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                  <div>
-                    <p className="text-sm font-medium uppercase tracking-[0.18em] text-slate-500">
-                      Today
-                    </p>
-                    <h2 className="mt-2 text-2xl font-semibold text-white">
-                      Active Quests
-                    </h2>
-                    <p className="mt-2 text-sm text-slate-400">
-                      Complete active quests here. The quest list refreshes after each successful completion.
-                    </p>
-                  </div>
+              {actionError ? (
+                <section className="system-alert system-alert-error">
+                  {actionError}
+                </section>
+              ) : null}
 
-                  <div className="rounded-full border border-slate-800 px-4 py-2 text-sm text-slate-400">
-                    {refreshing ? "Refreshing..." : `${activeQuests.length} active`}
+              {successMessage ? (
+                <section className="system-alert system-alert-success">
+                  {successMessage}
+                </section>
+              ) : null}
+
+              <section className="system-panel p-5 sm:p-8">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                  <div className="text-center sm:text-left">
+                    <p className="system-eyebrow">Quest Board</p>
+                    <h2 className="mt-2 text-2xl font-semibold text-white">Active Quests</h2>
+                    <p className="mt-2 system-copy">
+                      {activeQuests.length > 0
+                        ? `System notice: ${activeQuests.length} active quest${activeQuests.length > 1 ? "s are" : " is"} currently ready for clearance.`
+                        : "System notice: No active quests detected for today."}
+                    </p>
                   </div>
+                  <span className="system-badge">
+                    {refreshing ? "Refreshing" : `${activeQuests.length} active`}
+                  </span>
                 </div>
 
-                {actionError ? (
-                  <div className="mt-6 rounded-2xl border border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-300">
-                    {actionError}
-                  </div>
-                ) : null}
-
-                {successMessage ? (
-                  <div className="mt-6 rounded-2xl border border-emerald-900 bg-emerald-950/40 px-4 py-3 text-sm text-emerald-300">
-                    {successMessage}
-                  </div>
-                ) : null}
-
                 {activeQuests.length === 0 ? (
-                  <div className="mt-6 rounded-2xl border border-dashed border-slate-800 bg-slate-950 px-5 py-8 text-sm text-slate-400">
-                    No active quests returned for today.
+                  <div className="mt-6 system-card border-dashed p-6 text-sm text-slate-400">
+                    No active quests are currently assigned. Create a template and the system will generate the next quest cycle.
                   </div>
                 ) : (
                   <div className="mt-6 grid gap-4">
@@ -378,28 +426,21 @@ export default function DashboardPage() {
                 )}
               </section>
 
-              <section className="rounded-3xl border border-slate-800 bg-slate-900 p-6 sm:p-8">
-                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                  <div>
-                    <p className="text-sm font-medium uppercase tracking-[0.18em] text-slate-500">
-                      Today
-                    </p>
-                    <h2 className="mt-2 text-2xl font-semibold text-white">
-                      Completed Quests
-                    </h2>
-                    <p className="mt-2 text-sm text-slate-400">
-                      Completed quest instances returned by the current day quest API.
+              <section className="system-panel p-5 sm:p-8">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                  <div className="text-center sm:text-left">
+                    <p className="system-eyebrow">Archive</p>
+                    <h2 className="mt-2 text-2xl font-semibold text-white">Completed Quests</h2>
+                    <p className="mt-2 system-copy">
+                      Cleared quests remain visible here as system-confirmed records of today&apos;s progress.
                     </p>
                   </div>
-
-                  <div className="rounded-full border border-slate-800 px-4 py-2 text-sm text-slate-400">
-                    {completedQuests.length} completed
-                  </div>
+                  <span className="system-badge">{completedQuests.length} cleared</span>
                 </div>
 
                 {completedQuests.length === 0 ? (
-                  <div className="mt-6 rounded-2xl border border-dashed border-slate-800 bg-slate-950 px-5 py-8 text-sm text-slate-400">
-                    No completed quests returned for today.
+                  <div className="mt-6 system-card border-dashed p-6 text-sm text-slate-400">
+                    No completed quests recorded yet. Clear an active quest to populate this archive.
                   </div>
                 ) : (
                   <div className="mt-6 grid gap-4">

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth-provider";
+import SystemRulesModal from "@/components/system-rules-modal";
 
 export const metadata: Metadata = {
   title: "XP System Auth",
@@ -15,7 +16,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <SystemRulesModal />
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

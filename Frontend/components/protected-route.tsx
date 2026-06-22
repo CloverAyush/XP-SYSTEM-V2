@@ -17,8 +17,11 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (!isReady || !token) {
     return (
       <main className="flex min-h-screen items-center justify-center px-4">
-        <div className="rounded-2xl bg-white px-6 py-5 text-sm text-slate-600 shadow-panel">
-          Checking authentication...
+        <div className="system-panel max-w-sm px-6 py-6 text-sm text-slate-300">
+          <p className="system-eyebrow">System Check</p>
+          <p className="mt-3 leading-6">
+            Verifying hunter authorization. Stand by while the system restores your session.
+          </p>
         </div>
       </main>
     );

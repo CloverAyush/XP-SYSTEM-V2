@@ -57,7 +57,7 @@ export default function NewTemplatePage() {
         if (err instanceof ApiError) {
           setError(err.message);
         } else {
-          setError("Failed to load authenticated user");
+          setError("System warning: Unable to load authenticated user profile.");
         }
       } finally {
         setLoadingUser(false);
@@ -70,7 +70,7 @@ export default function NewTemplatePage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!user) {
-      setError("Authenticated user is not loaded yet");
+      setError("System warning: Authenticated user is not loaded yet.");
       return;
     }
 
@@ -79,7 +79,7 @@ export default function NewTemplatePage() {
     setSuccess("");
 
     if (targetDeadline && targetDeadline < todayString) {
-      setError("Target deadline cannot be in the past");
+      setError("System warning: Target deadline cannot be in the past.");
       setSubmitting(false);
       return;
     }
@@ -109,15 +109,15 @@ export default function NewTemplatePage() {
         }
       );
 
-      setSuccess(`Template created: ${response.title}`);
+      setSuccess(`System message: Template "${response.title}" registered successfully.`);
       setTimeout(() => {
         router.replace("/dashboard");
       }, 900);
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.message);
+        setError(`System warning: ${err.message}`);
       } else {
-        setError("Failed to create quest template");
+        setError("System warning: Template creation failed.");
       }
     } finally {
       setSubmitting(false);
@@ -129,87 +129,78 @@ export default function NewTemplatePage() {
 
   return (
     <ProtectedRoute>
-      <main className="min-h-screen bg-slate-950 px-4 py-8 text-slate-100 sm:px-6">
-        <div className="mx-auto max-w-3xl space-y-6">
-          <section className="rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-panel sm:p-8">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="text-sm font-medium uppercase tracking-[0.22em] text-cyan-300">
-                  XP System
-                </p>
-                <h1 className="mt-2 text-3xl font-semibold text-white">
+      <main className="min-h-screen px-4 py-6 text-slate-100 sm:px-6 sm:py-8">
+        <div className="mx-auto max-w-4xl space-y-6">
+          <section className="system-panel p-5 sm:p-8">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="text-center lg:text-left">
+                <p className="system-eyebrow">System Forge</p>
+                <h1 className="mt-3 text-3xl font-semibold text-white sm:text-4xl">
                   Create Quest Template
                 </h1>
-                <p className="mt-2 text-sm text-slate-400">
-                  This submits directly to the existing `POST /quest-templates` API using your current JWT session.
+                <p className="mt-3 max-w-2xl system-copy">
+                  Register a new quest template. The system will convert it into quest instances based on your selected type and schedule.
                 </p>
               </div>
 
-              <Link
-                href="/dashboard"
-                className="rounded-xl border border-slate-700 px-4 py-3 text-sm font-semibold text-white hover:border-slate-500 hover:bg-slate-950"
-              >
+              <Link href="/dashboard" className="system-button-secondary">
                 Back to Dashboard
               </Link>
             </div>
           </section>
 
           {loadingUser ? (
-            <section className="rounded-3xl border border-slate-800 bg-slate-900 p-6 text-sm text-slate-400">
-              Loading user session...
+            <section className="system-panel p-6">
+              <p className="system-copy">Synchronizing hunter identity before template submission...</p>
             </section>
           ) : null}
 
-          {error ? (
-            <section className="rounded-3xl border border-red-900 bg-red-950/50 p-6 text-sm text-red-300">
-              {error}
-            </section>
-          ) : null}
-
-          {success ? (
-            <section className="rounded-3xl border border-emerald-900 bg-emerald-950/40 p-6 text-sm text-emerald-300">
-              {success}
-            </section>
-          ) : null}
+          {error ? <section className="system-alert system-alert-error">{error}</section> : null}
+          {success ? <section className="system-alert system-alert-success">{success}</section> : null}
 
           {!loadingUser && user ? (
-            <section className="rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-panel sm:p-8">
+            <section className="system-panel p-5 sm:p-8">
+              <div className="mb-6 grid gap-4 md:grid-cols-[1.35fr_0.65fr]">
+                <div className="system-card p-5 text-center md:text-left">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Template Target</p>
+                  <p className="mt-3 text-lg font-semibold text-white">{user.username}</p>
+                  <p className="mt-2 text-sm text-slate-400 break-all">{user.email}</p>
+                </div>
+                <div className="system-card p-5 text-center md:text-left">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">System Hint</p>
+                  <p className="mt-3 text-sm leading-6 text-slate-400">
+                    One-time quests require a deadline. Scheduled quests expect lowercase day values like `mon,wed,fri`.
+                  </p>
+                </div>
+              </div>
+
               <form className="space-y-5" onSubmit={handleSubmit}>
-                <div className="grid gap-5 sm:grid-cols-2">
-                  <div className="sm:col-span-2">
-                    <label className="mb-2 block text-sm font-medium text-slate-300">
-                      Title
-                    </label>
+                <div className="grid gap-5 md:grid-cols-2">
+                  <div className="md:col-span-2">
+                    <label className="mb-2 block text-sm font-medium text-slate-300">Title</label>
                     <input
                       value={title}
                       onChange={(event) => setTitle(event.target.value)}
-                      placeholder="Morning Run"
+                      placeholder="Arise Before Dawn"
                       required
-                      className="border-slate-700 bg-slate-950 text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:ring-cyan-400/20"
                     />
                   </div>
 
-                  <div className="sm:col-span-2">
-                    <label className="mb-2 block text-sm font-medium text-slate-300">
-                      Description
-                    </label>
+                  <div className="md:col-span-2">
+                    <label className="mb-2 block text-sm font-medium text-slate-300">Description</label>
                     <textarea
                       value={description}
                       onChange={(event) => setDescription(event.target.value)}
-                      placeholder="Run 5km before work"
+                      placeholder="Describe the mission parameters and completion condition."
                       rows={4}
-                      className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
                     />
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-300">
-                      Quest Type
-                    </label>
+                    <label className="mb-2 block text-sm font-medium text-slate-300">Quest Type</label>
                     <select
                       value={questType}
                       onChange={(event) => setQuestType(event.target.value)}
-                      className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
                     >
                       {questTypes.map((type) => (
                         <option key={type} value={type}>
@@ -220,13 +211,10 @@ export default function NewTemplatePage() {
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-300">
-                      Difficulty
-                    </label>
+                    <label className="mb-2 block text-sm font-medium text-slate-300">Difficulty</label>
                     <select
                       value={difficulty}
                       onChange={(event) => setDifficulty(event.target.value)}
-                      className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
                     >
                       {difficulties.map((value) => (
                         <option key={value} value={value}>
@@ -237,7 +225,7 @@ export default function NewTemplatePage() {
                   </div>
 
                   {showScheduledDays ? (
-                    <div className="sm:col-span-2">
+                    <div className="md:col-span-2">
                       <label className="mb-2 block text-sm font-medium text-slate-300">
                         Scheduled Days
                       </label>
@@ -246,16 +234,15 @@ export default function NewTemplatePage() {
                         onChange={(event) => setScheduledDays(event.target.value)}
                         placeholder="mon,wed,fri"
                         required={showScheduledDays}
-                        className="border-slate-700 bg-slate-950 text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:ring-cyan-400/20"
                       />
                       <p className="mt-2 text-xs text-slate-500">
-                        Comma-separated lowercase day names expected by the current backend, for example `mon,wed,fri`.
+                        Lowercase comma-separated day names expected by the current backend.
                       </p>
                     </div>
                   ) : null}
 
                   {showTargetDeadline ? (
-                    <div className="sm:col-span-2">
+                    <div className="md:col-span-2">
                       <label className="mb-2 block text-sm font-medium text-slate-300">
                         Target Deadline
                       </label>
@@ -265,23 +252,13 @@ export default function NewTemplatePage() {
                         onChange={(event) => setTargetDeadline(event.target.value)}
                         required={showTargetDeadline}
                         min={todayString}
-                        className="border-slate-700 bg-slate-950 text-slate-100 focus:border-cyan-400 focus:ring-cyan-400/20"
                       />
                     </div>
                   ) : null}
                 </div>
 
-                <div className="rounded-2xl border border-slate-800 bg-slate-950 px-4 py-4 text-sm text-slate-400">
-                  Template will be created for user:{" "}
-                  <span className="font-semibold text-white">{user.username}</span>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="w-full rounded-xl bg-cyan-400 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {submitting ? "Creating template..." : "Create Quest Template"}
+                <button type="submit" disabled={submitting} className="system-button-primary w-full sm:w-auto">
+                  {submitting ? "Submitting quest template..." : "Create Quest Template"}
                 </button>
               </form>
             </section>

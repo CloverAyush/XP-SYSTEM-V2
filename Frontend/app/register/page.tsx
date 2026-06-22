@@ -60,20 +60,18 @@ export default function RegisterPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-10">
-      <section className="w-full max-w-md rounded-3xl bg-white p-8 shadow-panel">
+      <section className="system-panel w-full max-w-md p-8">
         <div className="mb-8">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-accent">
-            XP System
-          </p>
-          <h1 className="mt-3 text-3xl font-semibold text-ink">Register</h1>
-          <p className="mt-2 text-sm text-slate-600">
-            Create an account using the documented auth API.
+          <p className="system-eyebrow">Solo Leveling System</p>
+          <h1 className="mt-3 text-3xl font-semibold text-white">Awaken Hunter</h1>
+          <p className="mt-2 text-sm text-slate-400">
+            Register your account to unlock quest tracking, XP gain, streak progression, and system logs.
           </p>
         </div>
 
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">
+            <label className="mb-2 block text-sm font-medium text-slate-300">
               Username
             </label>
             <input
@@ -85,7 +83,7 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">
+            <label className="mb-2 block text-sm font-medium text-slate-300">
               Email
             </label>
             <input
@@ -98,7 +96,7 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">
+            <label className="mb-2 block text-sm font-medium text-slate-300">
               Password
             </label>
             <input
@@ -111,13 +109,13 @@ export default function RegisterPage() {
           </div>
 
           {error ? (
-            <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <p className="system-alert system-alert-error">
               {error}
             </p>
           ) : null}
 
           {success ? (
-            <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            <p className="system-alert system-alert-success">
               {success}
             </p>
           ) : null}
@@ -125,15 +123,15 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white hover:bg-accentDark disabled:cursor-not-allowed disabled:opacity-70"
+            className="system-button-primary w-full"
           >
-            {submitting ? "Creating account..." : "Register"}
+            {submitting ? "Initializing hunter profile..." : "Register"}
           </button>
         </form>
 
-        <p className="mt-6 text-sm text-slate-600">
+        <p className="mt-6 text-sm text-slate-400">
           Already registered?{" "}
-          <Link className="font-semibold text-accent" href="/login">
+          <Link className="font-semibold text-violet-300" href="/login">
             Login
           </Link>
         </p>

@@ -3,14 +3,17 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 body {
-  @apply min-h-screen bg-mist text-ink antialiased;
+  @apply min-h-screen bg-[#070511] text-slate-100 antialiased;
   background-image:
-    radial-gradient(circle at top left, rgba(15, 118, 110, 0.14), transparent 28rem),
-    radial-gradient(circle at bottom right, rgba(17, 24, 39, 0.08), transparent 24rem);
+    radial-gradient(circle at top center, rgba(139, 92, 246, 0.24), transparent 24rem),
+    radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.08), transparent 18rem),
+    radial-gradient(circle at bottom right, rgba(168, 85, 247, 0.18), transparent 28rem),
+    linear-gradient(180deg, #120c24 0%, #090611 45%, #05040b 100%);
+  background-attachment: fixed;
 }
 
 a {
@@ -18,9 +21,68 @@ a {
 }
 
 input {
-  @apply w-full rounded-xl border border-line bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20;
+  @apply w-full rounded-2xl border border-violet-900/70 bg-[#0b0a17]/90 px-4 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-violet-400 focus:ring-2 focus:ring-violet-400/20;
+}
+
+select,
+textarea {
+  @apply w-full rounded-2xl border border-violet-900/70 bg-[#0b0a17]/90 px-4 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-violet-400 focus:ring-2 focus:ring-violet-400/20;
 }
 
 button {
   @apply transition;
+}
+
+@layer components {
+  .system-shell {
+    @apply mx-auto w-full max-w-6xl space-y-6;
+  }
+
+  .system-panel {
+    @apply rounded-[28px] border border-violet-900/50 bg-slate-950/75 backdrop-blur-xl shadow-[0_24px_80px_rgba(42,16,88,0.45)];
+  }
+
+  .system-card {
+    @apply rounded-[24px] border border-violet-900/40 bg-[#090714]/85 backdrop-blur-sm;
+  }
+
+  .system-eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.28em] text-violet-300;
+  }
+
+  .system-title {
+    @apply text-3xl font-semibold text-white sm:text-4xl;
+  }
+
+  .system-copy {
+    @apply text-sm leading-6 text-slate-400;
+  }
+
+  .system-badge {
+    @apply inline-flex items-center rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-violet-200;
+  }
+
+  .system-button-primary {
+    @apply inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-300 px-5 py-3 text-sm font-semibold text-slate-950 shadow-[0_12px_30px_rgba(139,92,246,0.35)] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .system-button-secondary {
+    @apply inline-flex items-center justify-center rounded-2xl border border-violet-800/70 bg-slate-950/70 px-5 py-3 text-sm font-semibold text-slate-100 hover:border-violet-500/60 hover:bg-violet-950/30;
+  }
+
+  .system-alert {
+    @apply rounded-2xl border px-4 py-4 text-sm;
+  }
+
+  .system-alert-error {
+    @apply border-red-900/70 bg-red-950/35 text-red-200;
+  }
+
+  .system-alert-success {
+    @apply border-emerald-900/70 bg-emerald-950/35 text-emerald-200;
+  }
+
+  .system-alert-info {
+    @apply border-violet-900/70 bg-violet-950/25 text-violet-100;
+  }
 }

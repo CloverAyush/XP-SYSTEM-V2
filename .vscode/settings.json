@@ -1,4 +1,0 @@
-{
-    "python.REPL.enableREPLSmartSend": false,
-    "python.defaultInterpreterPath": "${workspaceFolder}\\.venv\\Scripts\\python.exe"
-}

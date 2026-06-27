@@ -11,7 +11,6 @@ fastapi==0.135.1
 greenlet==3.3.2
 h11==0.16.0
 idna==3.11
-passlib==1.7.4
 psycopg2-binary==2.9.12
 pyasn1==0.6.3
 pycparser==3.0

@@ -2,9 +2,9 @@ import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+import bcrypt
 from fastapi import HTTPException, status
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from pydantic import BaseModel
 from sqlalchemy import inspect, or_, text
 from sqlalchemy.orm import Session
@@ -16,8 +16,6 @@ from Database.database import engine
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "xp-system-dev-secret-key")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class RegisterRequest(BaseModel):
@@ -45,13 +43,22 @@ def ensure_auth_schema():
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    password_bytes = password.encode("utf-8")
+    hashed = bcrypt.hashpw(password_bytes, bcrypt.gensalt())
+    return hashed.decode("utf-8")
 
 
 def verify_password(plain_password: str, hashed_password: Optional[str]) -> bool:
     if not hashed_password:
         return False
-    return pwd_context.verify(plain_password, hashed_password)
+
+    try:
+        return bcrypt.checkpw(
+            plain_password.encode("utf-8"),
+            hashed_password.encode("utf-8"),
+        )
+    except ValueError:
+        return False
 
 
 def authenticate_user(db: Session, identifier: str, password: str) -> Optional[User]:

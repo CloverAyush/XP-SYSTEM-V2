@@ -2,11 +2,12 @@
 # -*- coding: utf-8 -*-
 """
 Comprehensive database recreation script
-This ensures ALL models are imported and the database is created correctly
+This ensures ALL models are imported and the configured PostgreSQL schema is created correctly
 """
 import sys
 import os
 import shutil
+from sqlalchemy import inspect
 
 # Add the project to path
 sys.path.insert(0, 'c:\\Users\\OM CHICKS\\Desktop\\XP-System')
@@ -23,16 +24,12 @@ for root, dirs, files in os.walk('c:\\Users\\OM CHICKS\\Desktop\\XP-System'):
         shutil.rmtree(pycache_path)
         print(f"  [OK] Removed {pycache_path}")
 
-# Step 2: Delete old database
-print("\n[2] Deleting old database...")
-db_path = 'c:\\Users\\OM CHICKS\\Desktop\\XP-System\\xp_system.db'
-if os.path.exists(db_path):
-    try:
-        os.remove(db_path)
-        print(f"  [OK] Deleted {db_path}")
-    except PermissionError:
-        print(f"  [WARN] Could not delete {db_path} (locked by another process)")
-        print("  [WARN] Will recreate schema by dropping tables")
+# Step 2: Validate database configuration
+print("\n[2] Validating database configuration...")
+database_url = os.getenv("DATABASE_URL")
+if not database_url:
+    raise RuntimeError("DATABASE_URL environment variable is required")
+print("  [OK] DATABASE_URL detected")
 
 # Step 3: Clear module cache
 print("\n[3] Clearing Python module cache...")
@@ -43,10 +40,9 @@ print(f"  [OK] Cleared {len(modules_to_clear)} cached modules")
 
 # Step 4: Import models (this automatically registers them)
 print("\n[4] Importing all models...")
-from Backend.models import User, Task, XPlog, QuestTemplate, QuestInstance
+from Backend.models import User, XPlog, QuestTemplate, QuestInstance
 from Database.database import Base, engine
 print("  [OK] User model imported")
-print("  [OK] Task model imported")
 print("  [OK] XPlog model imported")
 print("  [OK] QuestTemplate model imported")
 print("  [OK] QuestInstance model imported")
@@ -55,10 +51,6 @@ print("  [OK] QuestInstance model imported")
 print("\n[5] Verifying model definitions...")
 print("\n  User model columns:")
 for col in User.__table__.columns:
-    print(f"    - {col.name}")
-
-print("\n  Task model columns:")
-for col in Task.__table__.columns:
     print(f"    - {col.name}")
 
 print("\n  XPlog model columns:")
@@ -80,37 +72,12 @@ Base.metadata.create_all(bind=engine)
 print("  [OK] Database created")
 
 # Step 7: Verify database
-print("\n[7] Verifying database columns...")
-import sqlite3
-conn = sqlite3.connect('xp_system.db')
-cursor = conn.cursor()
-
-print("\n  Users table in database:")
-cursor.execute("PRAGMA table_info(users);")
-for col in cursor.fetchall():
-    print(f"    - {col[1]}: {col[2]}")
-
-print("\n  Tasks table in database:")
-cursor.execute("PRAGMA table_info(tasks);")
-for col in cursor.fetchall():
-    print(f"    - {col[1]}: {col[2]}")
-
-print("\n  Xp_logs table in database:")
-cursor.execute("PRAGMA table_info(Xp_logs);")
-for col in cursor.fetchall():
-    print(f"    - {col[1]}: {col[2]}")
-
-print("\n  quest_templates table in database:")
-cursor.execute("PRAGMA table_info(quest_templates);")
-for col in cursor.fetchall():
-    print(f"    - {col[1]}: {col[2]}")
-
-print("\n  quest_instances table in database:")
-cursor.execute("PRAGMA table_info(quest_instances);")
-for col in cursor.fetchall():
-    print(f"    - {col[1]}: {col[2]}")
-
-conn.close()
+print("\n[7] Verifying database schema...")
+inspector = inspect(engine)
+for table_name in inspector.get_table_names():
+    print(f"\n  {table_name} table in database:")
+    for col in inspector.get_columns(table_name):
+        print(f"    - {col['name']}: {col['type']}")
 
 print("\n" + "=" * 60)
 print("[OK] DATABASE RECREATION COMPLETE")

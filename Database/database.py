@@ -4,8 +4,9 @@ import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).parent.parent
-DB_PATH = BASE_DIR / "xp_system.db"
-DATABASE_URL = f"sqlite:///{DB_PATH}"
+DEFAULT_DB_PATH = BASE_DIR / "xp_system.db"
+SQLITE_DB_PATH = Path(os.getenv("SQLITE_DB_PATH", str(DEFAULT_DB_PATH)))
+DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{SQLITE_DB_PATH}")
 
 engine = create_engine(
     DATABASE_URL,

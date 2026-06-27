@@ -231,12 +231,16 @@ export default function NewTemplatePage() {
                       </label>
                       <input
                         value={scheduledDays}
-                        onChange={(event) => setScheduledDays(event.target.value)}
+                        onChange={(event) =>
+                          setScheduledDays(
+                            event.target.value.toLowerCase().replace(/\s+/g, "")
+                          )
+                        }
                         placeholder="mon,wed,fri"
                         required={showScheduledDays}
                       />
                       <p className="mt-2 text-xs text-slate-500">
-                        Lowercase comma-separated day names expected by the current backend.
+                        Lowercase comma-separated day names only for now, for example `mon,wed,fri`.
                       </p>
                     </div>
                   ) : null}
